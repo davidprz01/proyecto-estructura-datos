@@ -10,7 +10,7 @@ from audio import FMAFeatureExtractor
 
 # Configuración optimizada
 BASE_PATH = os.path.join("fma", "data", "fma_small")
-GENRES = ['000', '001', '002', '003', '004', '005']  # Hasta 005
+GENRES = ['000', '001', '002', '003', '004']  # Hasta 005
 SAMPLES_PER_GENRE = 80  # 80 canciones por género (480 total)
 TEST_SIZE = 0.2  # 20% para prueba
 
@@ -43,7 +43,7 @@ def load_dataset():
                     if count % 20 == 0:
                         print(f"{count} canciones procesadas")
         
-        print(f"✅ {count} canciones válidas de {genre_id}")
+        print(f" {count} canciones válidas de {genre_id}")
     
     return np.array(X), np.array(y)
 
@@ -68,7 +68,7 @@ def train_model(X, y):
     model.fit(X_train, y_train)
     
     # Evaluación detallada
-    print("\n📊 Resultados:")
+    print("\n Resultados:")
     y_pred = model.predict(X_test)
     print(f"Accuracy: {accuracy_score(y_test, y_pred):.2%}")
     print("\nReporte por género:")
@@ -83,19 +83,19 @@ def main():
         if len(X) == 0:
             raise ValueError("❌ No se encontraron archivos válidos")
             
-        print(f"\n📦 Dataset cargado: {len(X)} muestras")
-        print(f"🔢 Distribución: {np.bincount(y)}")
+        print(f"\n Dataset cargado: {len(X)} muestras")
+        print(f" Distribución: {np.bincount(y)}")
         
         model = train_model(X, y)
         
         # Guardar modelo
         model_path = "fma_model_6genres.pkl"
         joblib.dump(model, model_path)
-        print(f"\n✅ Modelo guardado como '{model_path}'")
+        print(f"\n Modelo guardado como '{model_path}'")
         
         # Verificación
         loaded_model = joblib.load(model_path)
-        print(f"🔍 Modelo verificado. Espera {loaded_model.n_features_in_} características")
+        print(f" Modelo verificado. Espera {loaded_model.n_features_in_} características")
         
     except Exception as e:
         print(f"\n❌ Error crítico: {str(e)}")

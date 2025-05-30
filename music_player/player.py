@@ -1,99 +1,170 @@
 import pygame
+import tkinter as tk
+from tkinter import filedialog
 import os
-from tkinter import Tk, Button, Label, filedialog, Listbox, Scrollbar, messagebox
-from song_queue import SongQueue
+from main import Queue
 from classifier import FMAGenreClassifier
 
 class MusicPlayer:
     def __init__(self):
         pygame.mixer.init()
-        self.queue = SongQueue()
+        self.queue = Queue()
         self.classifier = FMAGenreClassifier()
         self.current_song = None
         self.is_playing = False
+        self.is_paused = False  # Nueva variable para manejar el estado de pausa
+
+
+        # Configuración básica de la ventana
+        self.root = tk.Tk()
+        self.root.title("Reproductor")
+        self.root.geometry("300x400")
+        self.root.configure(bg="#121212")
         
-        # Configuración de la interfaz
-        self.root = Tk()
-        self.root.title("Reproductor Musical con Clasificación de Género")
-        self.root.geometry("500x400")
-        
-        # Elementos de la UI
-        self.label = Label(self.root, text="Género: Desconocido", font=("Arial", 12))
-        self.label.pack(pady=10)
-        
-        self.confidence_label = Label(self.root, text="Confianza: 0%", font=("Arial", 10))
-        self.confidence_label.pack()
-        
+        # Marco principal
+        self.main_frame = tk.Frame(self.root, bg="#121212")
+        self.main_frame.pack(pady=10, fill='both', expand=True)
+        self.root.configure(bg="black")
+
+
+        # Botón para añadir canciones
+        self.add_button = tk.Button(
+            self.main_frame,
+            text="Añadir Canciones", fg = "white",
+            command=self.add_song,
+            bg="#1b1b1d"
+        )
+        self.add_button.pack(pady=5, fill='x')
+
         # Lista de reproducción
-        self.playlist = Listbox(self.root, selectmode="SINGLE", width=60, height=15)
-        self.scrollbar = Scrollbar(self.root, orient="vertical")
-        self.playlist.config(yscrollcommand=self.scrollbar.set)
-        self.scrollbar.config(command=self.playlist.yview)
-        self.playlist.pack(pady=10)
-        self.scrollbar.pack(side="right", fill="y")
-        
-        # Botones
-        Button(self.root, text="Añadir Canción", command=self.add_song).pack(side="left", padx=5)
-        Button(self.root, text="Reproducir", command=self.play).pack(side="left", padx=5)
-        Button(self.root, text="Pausa", command=self.pause).pack(side="left", padx=5)
-        Button(self.root, text="Detener", command=self.stop).pack(side="left", padx=5)
-        Button(self.root, text="Siguiente", command=self.next_song).pack(side="left", padx=5)
-        
+        self.playlist = tk.Listbox(
+            self.main_frame,
+            height=12,
+            fg="white", bg="#1b1b1d",
+            selectbackground="#252424",
+            selectforeground="white"
+        )
+        self.playlist.pack(pady=5, fill='both', expand=True)
+
+        # Información de la canción
+        self.song_label = tk.Label(
+            self.main_frame,
+            text="No hay canción seleccionada",
+            fg="white", bg="#121212",
+            wraplength=280,
+        )
+        self.song_label.pack(pady=5)
+
+        self.genre_label = tk.Label(
+            self.main_frame,
+            text="Género: Desconocido",
+            fg="white", bg="#121212"
+        )
+        self.genre_label.pack()
+
+        # Controles básicos
+        self.controls_frame = tk.Frame(self.main_frame, bg="#121212")
+        self.controls_frame.pack(pady=10)
+
+        self.play_button = tk.Button(
+            self.controls_frame,
+            text="▶",
+            command=self.play_pause,
+            width=5,
+            fg="white", bg="#1b1b1d"
+        )
+        self.play_button.pack(side='left', padx=5)
+
+        self.next_button = tk.Button(
+            self.controls_frame,
+            text="⏭",
+            command=self.next_song,
+            width=5,
+            fg="white", bg="#1b1b1d"
+        )
+        self.next_button.pack(side='left', padx=5)
+
         # Eventos
         self.playlist.bind("<Double-Button-1>", self.play_selected)
-        pygame.mixer.music.set_endevent(pygame.USEREVENT)
-        
-        self.root.mainloop()
-    
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
     def add_song(self):
         filepaths = filedialog.askopenfilenames(filetypes=[("Audio Files", "*.mp3 *.wav")])
         for filepath in filepaths:
             self.queue.enqueue(filepath)
             self.playlist.insert("end", os.path.basename(filepath))
-    
-    def play(self):
-        if not self.is_playing and not self.queue.is_empty():
+
+    def play_pause(self):
+        if self.is_paused:
+            # Si está pausado, reanudar
+            self.resume()
+        elif self.is_playing:
+            # Si está reproduciendo, pausar
+            self.pause()
+        else:
+            # Si no está reproduciendo nada, reproducir nueva canción
+            self.play_new_song()
+
+    def play_new_song(self):
+        """Reproduce una nueva canción de la cola"""
+        if not self.queue.is_empty():
             self.current_song = self.queue.dequeue()
-            self.playlist.delete(0)  # Elimina la primera canción de la lista
+            self.playlist.delete(0)
+            
+            # Mostrar información
+            song_name = os.path.basename(self.current_song)
+            self.song_label.config(text=song_name)
             
             # Clasificar género
             genre, confidence = self.classifier.predict_genre(self.current_song)
-            self.label.config(text=f"Género: {genre.capitalize()}")
-            self.confidence_label.config(text=f"Confianza: {confidence*100:.1f}%")
+            self.genre_label.config(text=f"Género: {genre} ({confidence*100:.0f}%)")
             
             pygame.mixer.music.load(self.current_song)
             pygame.mixer.music.play()
             self.is_playing = True
-    
+            self.is_paused = False
+            self.play_button.config(text="⏸")
+
+    def pause(self):
+        """Pausa la reproducción actual"""
+        pygame.mixer.music.pause()
+        self.is_playing = False
+        self.is_paused = True
+        self.play_button.config(text="▶")
+
+    def resume(self):
+        """Reanuda la reproducción pausada"""
+        pygame.mixer.music.unpause()
+        self.is_playing = True
+        self.is_paused = False
+        self.play_button.config(text="⏸")
+
+    def next_song(self):
+        """Pasa a la siguiente canción"""
+        if self.is_playing or self.is_paused:
+            pygame.mixer.music.stop()
+        self.is_playing = False
+        self.is_paused = False
+        self.play_new_song()
+
     def play_selected(self, event):
         selection = self.playlist.curselection()
         if selection:
             index = selection[0]
+            # Aquí necesitarías mapear el índice a la ruta completa del archivo
+            # Por ahora, esto solo funcionará si mantienes una lista de rutas
             song_name = self.playlist.get(index)
-            
-            # Buscar la canción en la cola (simplificado para ejemplo)
-            # En una implementación real, necesitarías mapear nombres a rutas
-            self.current_song = song_name  # Esto debería ser la ruta completa
-            self.play()
-    
-    def pause(self):
-        if self.is_playing:
-            pygame.mixer.music.pause()
+            # Detener la reproducción actual si existe
+            if self.is_playing or self.is_paused:
+                pygame.mixer.music.stop()
             self.is_playing = False
-        else:
-            pygame.mixer.music.unpause()
-            self.is_playing = True
-    
-    def stop(self):
-        pygame.mixer.music.stop()
-        self.is_playing = False
-    
-    def next_song(self):
-        self.stop()
-        self.play()
-    
-    def check_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.USEREVENT:  # Canción terminó
-                self.next_song()
-        self.root.after(100, self.check_events)
+            self.is_paused = False
+            self.play_new_song()
+
+    def on_close(self):
+        pygame.mixer.quit()
+        self.root.destroy()
+
+if __name__ == "__main__":
+    player = MusicPlayer()
+    player.root.mainloop()
