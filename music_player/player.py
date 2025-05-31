@@ -85,8 +85,8 @@ class MusicPlayer:
         self.next_button.pack(side='left', padx=5)
 
         # Eventos
-        self.playlist.bind("<Double-Button-1>", self.play_selected)
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        # self.playlist.bind("<Double-Button-1>", self.play_selected)
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
 
     def add_song(self):
         filepaths = filedialog.askopenfilenames(filetypes=[("Audio Files", "*.mp3 *.wav")])
@@ -147,24 +147,11 @@ class MusicPlayer:
         self.is_paused = False
         self.play_new_song()
 
-    def play_selected(self, event):
-        selection = self.playlist.curselection()
-        if selection:
-            index = selection[0]
-            # Aquí necesitarías mapear el índice a la ruta completa del archivo
-            # Por ahora, esto solo funcionará si mantienes una lista de rutas
-            song_name = self.playlist.get(index)
-            # Detener la reproducción actual si existe
-            if self.is_playing or self.is_paused:
-                pygame.mixer.music.stop()
-            self.is_playing = False
-            self.is_paused = False
-            self.play_new_song()
 
-    def on_close(self):
+    def close(self):
         pygame.mixer.quit()
         self.root.destroy()
 
 if __name__ == "__main__":
     player = MusicPlayer()
-    player.root.mainloop()
+    player.root.mainloop() 
